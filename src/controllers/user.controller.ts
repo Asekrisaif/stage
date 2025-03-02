@@ -48,6 +48,7 @@ export const checkUser = (req: Request, res: Response): void => {
         }
     });
 };
+
 export const getUsers = (req: Request, res: Response): void => {
     pool.query('SELECT * FROM utilisateur', (err, result) => {
         if (err) {
@@ -60,9 +61,9 @@ export const getUsers = (req: Request, res: Response): void => {
         }
     });
 };
-// Récupérer un utilisateur par ID
+
 export const getUserById = (req: Request, res: Response): void => {
-    const { id } = req.params; // Récupère l'ID de l'utilisateur depuis les paramètres de la requête
+    const { id } = req.params;
 
     const query = 'SELECT * FROM utilisateur WHERE id = $1';
 
@@ -76,6 +77,44 @@ export const getUserById = (req: Request, res: Response): void => {
             });
         } else {
             res.status(404).json({ error: 'Utilisateur non trouvé' });
+        }
+    });
+};
+
+export const updateUser = (req: Request, res: Response): void => {
+    const { id } = req.params;
+    const { nom, prenom, email, telephone, adresse, motDePasse, role } = req.body;
+
+    // Vérifiez que l'ID est un nombre valide
+    if (isNaN(Number(id))) {
+        res.status(400).json({ error: 'ID invalide' });
+        return;
+    }
+
+    // Vérifiez que tous les champs sont présents
+    if (!nom || !prenom || !email || !telephone || !adresse || !motDePasse || !role) {
+        res.status(400).json({ error: 'Tous les champs sont requis.' });
+        return;
+    }
+
+    const query = `
+        UPDATE utilisateur
+        SET nom = $1, prenom = $2, email = $3, telephone = $4, adresse = $5, motDePasse = $6, role = $7
+        WHERE id = $8
+        RETURNING *;
+    `;
+
+    pool.query(query, [nom, prenom, email, telephone, adresse, motDePasse, role, id], (err, result) => {
+        if (err) {
+            console.error('Erreur SQL:', err);
+            res.status(500).json({ error: 'Erreur lors de la mise à jour de l\'utilisateur', details: err.message });
+        } else if (result.rows.length === 0) {
+            res.status(404).json({ error: 'Utilisateur non trouvé' });
+        } else {
+            res.status(200).json({
+                message: 'Utilisateur mis à jour avec succès',
+                user: result.rows[0]
+            });
         }
     });
 };

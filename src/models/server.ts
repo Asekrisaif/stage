@@ -1,5 +1,5 @@
+// src/models/server.ts
 import express, { Application } from "express";
-import pool from "../db/connection";
 import routesUser from '../routes/user.routes';
 import routesDefault from '../routes/default.routes';
 import routesProducto from '../routes/producto.routes';
