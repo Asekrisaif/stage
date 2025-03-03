@@ -7,13 +7,14 @@ const localPoolConfig = {
     password: '0000',       // Mot de passe PostgreSQL
     host: 'localhost',      // Hôte de la base de données
     port: 5432,             // Port de la base de données
-    database: 'mediasoft'   // Nom de la base de données
+    database: 'mediasoft',  // Nom de la base de données
+    ssl: false              // Désactive SSL
 };
 
 // Configuration pour la base de données distante (via DATABASE_URL)
 const remotePoolConfig = {
-    connectionString: process.env.DATABASE_URL, // URL de connexion distante
-    ssl: { rejectUnauthorized: false }          // Configuration SSL pour les connexions distantes
+    connectionString: process.env.DATABASE_URL,
+    ssl: false              // Désactive SSL
 };
 
 // Sélection de la configuration en fonction de la présence de DATABASE_URL

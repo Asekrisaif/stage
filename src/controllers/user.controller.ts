@@ -1,120 +1,159 @@
 import { Request, Response } from "express";
-import pool from "../db/connection";
+import { PrismaClient } from '@prisma/client';
 
-export const addUser = (req: Request, res: Response): void => {
+const prisma = new PrismaClient();
+
+export const getDefault = (req: Request, res: Response): void => {
+    res.json({
+        msg: 'API fonctionnelle'
+    });
+};
+
+export const getUsers = async (req: Request, res: Response): Promise<void> => {
+    try {
+        const users = await prisma.utilisateur.findMany();
+        res.json({ users });
+    } catch (err) {
+        // Typer l'erreur comme un objet Error
+        if (err instanceof Error) {
+            console.error('Erreur SQL:', err);
+            res.status(500).json({ error: 'Erreur lors de la récupération des utilisateurs', details: err.message });
+        } else {
+            console.error('Erreur inconnue:', err);
+            res.status(500).json({ error: 'Erreur inconnue lors de la récupération des utilisateurs' });
+        }
+    }
+};
+
+export const addUser = async (req: Request, res: Response): Promise<void> => {
     const { nom, prenom, email, telephone, adresse, motDePasse, role } = req.body;
 
-    // Vérifiez que tous les champs sont présents
     if (!nom || !prenom || !email || !telephone || !adresse || !motDePasse || !role) {
         res.status(400).json({ error: 'Tous les champs sont requis.' });
         return;
     }
 
-    const query = `
-        INSERT INTO utilisateur (nom, prenom, email, telephone, adresse, motDePasse, role, inscritLe)
-        VALUES ($1, $2, $3, $4, $5, $6, $7, CURRENT_DATE)
-        RETURNING *;
-    `;
-
-    pool.query(query, [nom, prenom, email, telephone, adresse, motDePasse, role], (err, result) => {
-        if (err) {
+    try {
+        const newUser = await prisma.utilisateur.create({
+            data: {
+                nom,
+                prenom,
+                email,
+                telephone,
+                adresse,
+                motDePasse,
+                role,
+                inscritLe: new Date()
+            }
+        });
+        res.status(201).json({
+            message: 'Utilisateur ajouté avec succès',
+            user: newUser
+        });
+    } catch (err) {
+        // Typer l'erreur comme un objet Error
+        if (err instanceof Error) {
             console.error('Erreur SQL:', err);
-            res.status(500).json({ error: 'Erreur lors de l\'ajout de l\'utilisateur.' });
+            res.status(500).json({ error: 'Erreur lors de l\'ajout de l\'utilisateur.', details: err.message });
         } else {
-            res.status(201).json({
-                message: 'Utilisateur ajouté avec succès',
-                user: result.rows[0]
-            });
+            console.error('Erreur inconnue:', err);
+            res.status(500).json({ error: 'Erreur inconnue lors de l\'ajout de l\'utilisateur.' });
         }
-    });
+    }
 };
 
-export const checkUser = (req: Request, res: Response): void => {
+export const checkUser = async (req: Request, res: Response): Promise<void> => {
     const { email, motDePasse } = req.body;
 
-    const query = 'SELECT * FROM utilisateur WHERE email = $1 AND motDePasse = $2';
+    try {
+        const user = await prisma.utilisateur.findUnique({
+            where: { email }
+        });
 
-    pool.query(query, [email, motDePasse], (err, result) => {
-        if (err) {
-            console.error(err);
-            res.status(500).json({ error: 'Erreur lors de la vérification de l\'utilisateur' });
-        } else if (result.rows.length > 0) {
+        if (user && user.motDePasse === motDePasse) {
             res.json({
                 message: 'Compte correct',
-                user: result.rows[0]
+                user
             });
         } else {
             res.status(404).json({ error: 'Compte incorrect' });
         }
-    });
-};
-
-export const getUsers = (req: Request, res: Response): void => {
-    pool.query('SELECT * FROM utilisateur', (err, result) => {
-        if (err) {
-            console.error('Erreur SQL:', err);
-            res.status(500).json({ error: 'Erreur lors de la récupération des utilisateurs' });
+    } catch (err) {
+        // Typer l'erreur comme un objet Error
+        if (err instanceof Error) {
+            console.error(err);
+            res.status(500).json({ error: 'Erreur lors de la vérification de l\'utilisateur', details: err.message });
         } else {
-            res.json({
-                users: result.rows
-            });
+            console.error('Erreur inconnue:', err);
+            res.status(500).json({ error: 'Erreur inconnue lors de la vérification de l\'utilisateur' });
         }
-    });
+    }
 };
 
-export const getUserById = (req: Request, res: Response): void => {
+export const getUserById = async (req: Request, res: Response): Promise<void> => {
     const { id } = req.params;
 
-    const query = 'SELECT * FROM utilisateur WHERE id = $1';
+    try {
+        const user = await prisma.utilisateur.findUnique({
+            where: { id: parseInt(id) }
+        });
 
-    pool.query(query, [id], (err, result) => {
-        if (err) {
-            console.error('Erreur SQL:', err);
-            res.status(500).json({ error: 'Erreur lors de la récupération de l\'utilisateur' });
-        } else if (result.rows.length > 0) {
-            res.json({
-                user: result.rows[0]
-            });
+        if (user) {
+            res.json({ user });
         } else {
             res.status(404).json({ error: 'Utilisateur non trouvé' });
         }
-    });
+    } catch (err) {
+        // Typer l'erreur comme un objet Error
+        if (err instanceof Error) {
+            console.error('Erreur SQL:', err);
+            res.status(500).json({ error: 'Erreur lors de la récupération de l\'utilisateur', details: err.message });
+        } else {
+            console.error('Erreur inconnue:', err);
+            res.status(500).json({ error: 'Erreur inconnue lors de la récupération de l\'utilisateur' });
+        }
+    }
 };
 
-export const updateUser = (req: Request, res: Response): void => {
+export const updateUser = async (req: Request, res: Response): Promise<void> => {
     const { id } = req.params;
     const { nom, prenom, email, telephone, adresse, motDePasse, role } = req.body;
 
-    // Vérifiez que l'ID est un nombre valide
     if (isNaN(Number(id))) {
         res.status(400).json({ error: 'ID invalide' });
         return;
     }
 
-    // Vérifiez que tous les champs sont présents
     if (!nom || !prenom || !email || !telephone || !adresse || !motDePasse || !role) {
         res.status(400).json({ error: 'Tous les champs sont requis.' });
         return;
     }
 
-    const query = `
-        UPDATE utilisateur
-        SET nom = $1, prenom = $2, email = $3, telephone = $4, adresse = $5, motDePasse = $6, role = $7
-        WHERE id = $8
-        RETURNING *;
-    `;
-
-    pool.query(query, [nom, prenom, email, telephone, adresse, motDePasse, role, id], (err, result) => {
-        if (err) {
+    try {
+        const updatedUser = await prisma.utilisateur.update({
+            where: { id: parseInt(id) },
+            data: {
+                nom,
+                prenom,
+                email,
+                telephone,
+                adresse,
+                motDePasse,
+                role
+            }
+        });
+        res.status(200).json({
+            message: 'Utilisateur mis à jour avec succès',
+            user: updatedUser
+        });
+    } catch (err) {
+        // Typer l'erreur comme un objet Error
+        if (err instanceof Error) {
             console.error('Erreur SQL:', err);
             res.status(500).json({ error: 'Erreur lors de la mise à jour de l\'utilisateur', details: err.message });
-        } else if (result.rows.length === 0) {
-            res.status(404).json({ error: 'Utilisateur non trouvé' });
         } else {
-            res.status(200).json({
-                message: 'Utilisateur mis à jour avec succès',
-                user: result.rows[0]
-            });
+            console.error('Erreur inconnue:', err);
+            res.status(500).json({ error: 'Erreur inconnue lors de la mise à jour de l\'utilisateur' });
         }
-    });
+    }
 };
