@@ -1,5 +1,7 @@
 import { Request, Response } from "express";
 import { PrismaClient } from '@prisma/client';
+import bcrypt from 'bcrypt';
+
 
 const prisma = new PrismaClient();
 
@@ -188,6 +190,44 @@ export const searchUsers = async (req: Request, res: Response): Promise<void> =>
         } else {
             console.error('Erreur inconnue:', err);
             res.status(500).json({ error: 'Erreur inconnue lors de la recherche des utilisateurs' });
+        }
+    }
+};
+export const changePassword = async (req: Request, res: Response): Promise<void> => {
+    const { id } = req.params;
+    const { newPassword } = req.body;
+
+    if (!id || isNaN(Number(id))) {
+        res.status(400).json({ error: 'ID invalide ou manquant.' });
+        return;
+    }
+
+    if (!newPassword) {
+        res.status(400).json({ error: 'Le nouveau mot de passe est requis.' });
+        return;
+    }
+
+    try {
+        // Hasher le nouveau mot de passe
+        const hashedPassword = await bcrypt.hash(newPassword, 10); // 10 est le coût du hachage
+
+        // Mettre à jour le mot de passe dans la base de données
+        const updatedUser = await prisma.utilisateur.update({
+            where: { id: Number(id) },
+            data: { motDePasse: hashedPassword }
+        });
+
+        res.status(200).json({
+            message: 'Mot de passe mis à jour avec succès',
+            user: updatedUser
+        });
+    } catch (err) {
+        if (err instanceof Error) {
+            console.error('Erreur SQL:', err);
+            res.status(500).json({ error: 'Erreur lors de la mise à jour du mot de passe', details: err.message });
+        } else {
+            console.error('Erreur inconnue:', err);
+            res.status(500).json({ error: 'Erreur inconnue lors de la mise à jour du mot de passe' });
         }
     }
 };
