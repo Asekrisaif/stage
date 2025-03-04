@@ -93,9 +93,14 @@ export const checkUser = async (req: Request, res: Response): Promise<void> => {
 export const getUserById = async (req: Request, res: Response): Promise<void> => {
     const { id } = req.params;
 
+    if (!id || isNaN(Number(id))) {
+        res.status(400).json({ error: 'ID invalide ou manquant.' });
+        return;
+    }
+
     try {
         const user = await prisma.utilisateur.findUnique({
-            where: { id: parseInt(id) }
+            where: { id: Number(id) } // Convertir l'ID en nombre
         });
 
         if (user) {
@@ -104,7 +109,6 @@ export const getUserById = async (req: Request, res: Response): Promise<void> =>
             res.status(404).json({ error: 'Utilisateur non trouvé' });
         }
     } catch (err) {
-        // Typer l'erreur comme un objet Error
         if (err instanceof Error) {
             console.error('Erreur SQL:', err);
             res.status(500).json({ error: 'Erreur lors de la récupération de l\'utilisateur', details: err.message });
@@ -154,6 +158,36 @@ export const updateUser = async (req: Request, res: Response): Promise<void> => 
         } else {
             console.error('Erreur inconnue:', err);
             res.status(500).json({ error: 'Erreur inconnue lors de la mise à jour de l\'utilisateur' });
+        }
+    }
+};
+export const searchUsers = async (req: Request, res: Response): Promise<void> => {
+    const { query } = req.query;
+
+    if (!query) {
+        res.status(400).json({ error: 'Le paramètre de recherche est requis.' });
+        return;
+    }
+
+    try {
+        const users = await prisma.utilisateur.findMany({
+            where: {
+                OR: [
+                    { nom: { contains: query as string, mode: 'insensitive' } },
+                    { prenom: { contains: query as string, mode: 'insensitive' } },
+                    { email: { contains: query as string, mode: 'insensitive' } }
+                ]
+            }
+        });
+
+        res.json({ users });
+    } catch (err) {
+        if (err instanceof Error) {
+            console.error('Erreur SQL:', err);
+            res.status(500).json({ error: 'Erreur lors de la recherche des utilisateurs', details: err.message });
+        } else {
+            console.error('Erreur inconnue:', err);
+            res.status(500).json({ error: 'Erreur inconnue lors de la recherche des utilisateurs' });
         }
     }
 };
